@@ -1,7 +1,6 @@
 ---
 name: 8d-skill
-description: >-
-  汽车行业 8D 问题解决报告生成器。根据用户提供的产品名称和缺陷描述，智能匹配 5 套行业模板（涂装/装配/焊接/尺寸/通用），自动生成 6 Sheet .xlsx 和标准 .docx 格式 8D 报告。覆盖 D0-D8 全流程：5Why 完整预填路径、6M 鱼骨图排查（含判定）、RC 根因总结、CA 纠正措施、D7 Yokoten 横向展开。纯本地生成，零外部依赖。Use when the user needs an 8D report for automotive quality issues, customer complaints, supplier corrective action requests (SCAR), or root cause analysis with corrective actions.
+description: "汽车行业IATF 16949 8D问题解决报告生成器。根据产品名和缺陷描述智能匹配5套行业模板（涂装/装配/焊接/尺寸/通用），自动生成6 Sheet .xlsx和标准.docx格式8D报告。覆盖D0-D8全流程：5Why完整预填路径、6M鱼骨图排查（含判定）、RC根因总结、CA纠正措施、D7 Yokoten横向展开。纯本地生成。Use when user needs 8D report for automotive quality issues, customer complaints, SCAR, or root cause analysis."
 ---
 
 # 8D Skill — 汽车行业 8D 问题解决报告生成器
