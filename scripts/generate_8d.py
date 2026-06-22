@@ -3,7 +3,7 @@
 """
 8D 问题解决报告生成器
 =====================
-接收产品名、缺陷描述、客户名等参数，输出 8D 报告 .xlsx（6 Sheet）和 .docx 文件。
+接收产品名、缺陷描述、客户名等参数，输出 8D 报告 .xlsx（单 Sheet）和 .docx 文件。
 
 依赖：
     - openpyxl（生成 Excel）
@@ -325,70 +325,61 @@ def write_kv_block(ws, start_row, kv_pairs, label_col_width=22, value_col_width=
 
 
 # ============================================================
-# Excel 各 Sheet 生成
+# Excel 生成（单 Sheet 版本：D0-D8 合并为一个表格）
 # ============================================================
 
-def build_sheet_d0_d2(wb, context, template, report_number):
-    """Sheet 1: D0-D2 基本信息"""
+def generate_excel(context, template, output_path, report_number):
+    """生成 Excel 文件（单 Sheet：8D报告）。"""
+    wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "D0-D2 基本信息"
+    ws.title = "8D报告"
     ws.sheet_properties.tabColor = "003366"
 
     row = 1
-    # 章节标题
-    row = write_yellow_section_title(ws, row, "D0-D2  问题基本信息与团队组建", span_cols=2)
+    d0_d2 = template.get("d0_d2", {})
 
-    # 空行
+    # ==================== D0-D2 ====================
+    row = write_yellow_section_title(ws, row, "D0-D2  问题基本信息与团队组建", span_cols=4)
     row += 1
 
     # 报告元信息
-    row = write_kv_block(
-        ws, row,
-        [
-            ("8D 报告编号", report_number),
-            ("报告生成日期", datetime.datetime.now().strftime("%Y-%m-%d")),
-            ("报告发起人", "____"),
-            ("报告状态", "进行中"),
-        ],
-    )
-
+    row = write_kv_block(ws, row, [
+        ("8D 报告编号", report_number),
+        ("报告生成日期", datetime.datetime.now().strftime("%Y-%m-%d")),
+        ("报告发起人", "____"),
+        ("报告状态", "进行中"),
+    ])
     row += 1
+
     # 客户信息
     row = write_section_title(ws, row, "一、客户信息", span_cols=2)
-    row = write_kv_block(
-        ws, row,
-        [
-            ("客户名称", context.get("customer", "____")),
-            ("客户联系人", "____"),
-            ("客户投诉日期", "____"),
-            ("客户投诉单号", "____"),
-            ("客户反馈渠道", "____（邮件 / 电话 / 8D通知单 / 现场）"),
-        ],
-    )
-
+    row = write_kv_block(ws, row, [
+        ("客户名称", context.get("customer", "____")),
+        ("客户联系人", "____"),
+        ("客户投诉日期", "____"),
+        ("客户投诉单号", "____"),
+        ("客户反馈渠道", "____（邮件 / 电话 / 8D通知单 / 现场）"),
+    ])
     row += 1
+
     # 产品信息
     row = write_section_title(ws, row, "二、产品信息", span_cols=2)
-    d0_d2 = template.get("d0_d2", {})
-    row = write_kv_block(
-        ws, row,
-        [
-            ("产品名称", context.get("product", "____")),
-            ("产品编号 / 零件号", "____"),
-            ("批次号", "____"),
-            ("批量数量", context.get("batch_size", "____")),
-            ("不良数量", "____"),
-            ("不良率", context.get("defect_rate", "____")),
-            ("缺陷等级", d0_d2.get("defect_level_hint", "____")),
-            ("发现位置", d0_d2.get("discovery_location_hint", "____")),
-            ("影响", d0_d2.get("impact_hint", "____")),
-        ],
-    )
-
+    row = write_kv_block(ws, row, [
+        ("产品名称", context.get("product", "____")),
+        ("产品编号 / 零件号", "____"),
+        ("批次号", "____"),
+        ("批量数量", context.get("batch_size", "____")),
+        ("不良数量", "____"),
+        ("不良率", context.get("defect_rate", "____")),
+        ("缺陷等级", d0_d2.get("defect_level_hint", "____")),
+        ("发现位置", d0_d2.get("discovery_location_hint", "____")),
+        ("影响", d0_d2.get("impact_hint", "____")),
+    ])
     row += 1
-    # D2 问题 5W2H 描述
+
+    # D2 5W2H
     row = write_section_title(ws, row, "三、D2 问题描述（5W2H）", span_cols=2)
-    five_w2h = [
+    row = write_kv_block(ws, row, [
         ("What（什么问题）", context.get("defect", "____")),
         ("When（何时发现）", "____（日期 / 班次）"),
         ("Where（何处发现）", "____（工序 / 客户环节 / 产品位置）"),
@@ -396,10 +387,9 @@ def build_sheet_d0_d2(wb, context, template, report_number):
         ("Why（为什么是问题）", "____（违反的标准 / 规格要求）"),
         ("How（如何发现）", "____（检验方法 / 测试方法）"),
         ("How many（不良数量/率）", f"{context.get('defect_rate', '____')}，批量 {context.get('batch_size', '____')}"),
-    ]
-    row = write_kv_block(ws, row, five_w2h)
-
+    ])
     row += 1
+
     # 问题陈述
     row = write_section_title(ws, row, "四、问题陈述", span_cols=2)
     problem_stmt = (
@@ -417,56 +407,40 @@ def build_sheet_d0_d2(wb, context, template, report_number):
     ws.row_dimensions[row].height = 60
     row += 1
 
+    # D1 团队
     row += 1
-    # D1 团队组建表
     row = write_section_title(ws, row, "五、D1 团队组建表", span_cols=4)
-    team_headers = ["角色", "姓名", "部门", "联系方式"]
-    team_rows = [
-        ["团队领导（质量工程师）", "____", "质量部", "____"],
-        ["工艺工程师", "____", "工艺部", "____"],
-        ["设备工程师", "____", "设备部", "____"],
-        ["生产主管", "____", "生产部", "____"],
-        ["设计工程师", "____", "研发部", "____"],
-        ["SQE（供应商质量工程师）", "____", "质量部", "____"],
-        ["质量经理（审核）", "____", "质量部", "____"],
-    ]
-    row = write_table(
-        ws, row, team_headers, team_rows,
+    row = write_table(ws, row,
+        ["角色", "姓名", "部门", "联系方式"],
+        [
+            ["团队领导（质量工程师）", "____", "质量部", "____"],
+            ["工艺工程师", "____", "工艺部", "____"],
+            ["设备工程师", "____", "设备部", "____"],
+            ["生产主管", "____", "生产部", "____"],
+            ["设计工程师", "____", "研发部", "____"],
+            ["SQE（供应商质量工程师）", "____", "质量部", "____"],
+            ["质量经理（审核）", "____", "质量部", "____"],
+        ],
         col_widths=[28, 18, 14, 22],
     )
 
-
-def build_sheet_d3(wb, context, template):
-    """Sheet 2: D3 临时遏制措施"""
-    ws = wb.create_sheet("D3 临时遏制措施")
-    ws.sheet_properties.tabColor = "C00000"
-
-    row = 1
+    # ==================== D3 ====================
+    row += 2
     row = write_yellow_section_title(ws, row, "D3  临时遏制措施（Interim Containment Actions）", span_cols=6)
-
     row += 1
-    # 5项遏制措施表格
     row = write_section_title(ws, row, "一、遏制措施清单", span_cols=6)
     d3 = template.get("d3_template", {})
     actions = d3.get("containment_actions", [])
-    # 若不足5项，补齐占位
     while len(actions) < 5:
         actions.append("____（请补充遏制措施）")
-
-    headers = ["序号", "遏制措施", "责任人", "完成时间", "验证方法", "状态"]
-    rows = []
-    for i, action in enumerate(actions[:5], start=1):
-        rows.append([i, action, "____", "____", "____（如100%全检记录/不良率对比）", "待执行"])
-
-    row = write_table(
-        ws, row, headers, rows,
+    row = write_table(ws, row,
+        ["序号", "遏制措施", "责任人", "完成时间", "验证方法", "状态"],
+        [[i + 1, actions[i], "____", "____", "____（如100%全检记录/不良率对比）", "待执行"] for i in range(5)],
         col_widths=[6, 50, 12, 14, 28, 10],
     )
-
     row += 1
-    # 遏制有效性验证
     row = write_section_title(ws, row, "二、遏制有效性验证", span_cols=2)
-    kv = [
+    row = write_kv_block(ws, row, [
         ("遏制前不良率", context.get("defect_rate", "____")),
         ("遏制开始日期", "____"),
         ("遏制后不良率（24h内）", "____"),
@@ -474,27 +448,16 @@ def build_sheet_d3(wb, context, template):
         ("遏制结论", "____（达标 / 未达标，是否需要继续遏制）"),
         ("遏制措施截止日期", "____"),
         ("客户是否认可", "____"),
-    ]
-    row = write_kv_block(ws, row, kv)
+    ])
 
-
-def build_sheet_d4(wb, context, template):
-    """Sheet 3: D4 根本原因分析"""
-    ws = wb.create_sheet("D4 根本原因分析")
-    ws.sheet_properties.tabColor = "ED7D31"
-
-    row = 1
+    # ==================== D4 ====================
+    row += 2
     row = write_yellow_section_title(ws, row, "D4  根本原因分析（Root Cause Analysis）", span_cols=4)
-
     row += 1
-    # 5Why 分析表
     row = write_section_title(ws, row, "一、5Why 分析", span_cols=4)
     d4 = template.get("d4_template", {})
     five_why = d4.get("5why_path", {})
-
-    # Use new steps array format, fall back to old format if not present
     steps = five_why.get("steps", [])
-    why_headers = ["层级", "问题", "答案", "证据"]
     why_rows = []
     root_cause_indices = []
 
@@ -508,38 +471,32 @@ def build_sheet_d4(wb, context, template):
             if "根因" in str(level):
                 root_cause_indices.append(idx)
     else:
-        # Fallback to old format
         problem = five_why.get("problem", "____")
         why_rows.append(["问题", problem, "—", "—"])
         why1 = five_why.get("why1", "____")
         why_rows.append(["Why 1", "为什么出现该问题？", why1, "____"])
         why2_hints = five_why.get("why2_hints", [])
-        why2_text = "\n".join(f"• {h}" for h in why2_hints) if why2_hints else "____"
-        why_rows.append(["Why 2", f"为什么：{why1[:30]}...", why2_text, "____"])
+        why_rows.append(["Why 2", f"为什么：{why1[:30]}...", "\n".join(f"• {h}" for h in why2_hints) if why2_hints else "____", "____"])
         why3_hints = five_why.get("why3_hints", [])
-        why3_text = "\n".join(f"• {h}" for h in why3_hints) if why3_hints else "____"
-        why_rows.append(["Why 3", "为什么会出现上述原因？", why3_text, "____"])
+        why_rows.append(["Why 3", "为什么会出现上述原因？", "\n".join(f"• {h}" for h in why3_hints) if why3_hints else "____", "____"])
         why4_hints = five_why.get("why4_hints", [])
-        why4_text = "\n".join(f"• {h}" for h in why4_hints) if why4_hints else "____"
-        why_rows.append(["Why 4", "为什么管理/流程未能预防？", why4_text, "____"])
+        why_rows.append(["Why 4", "为什么管理/流程未能预防？", "\n".join(f"• {h}" for h in why4_hints) if why4_hints else "____", "____"])
         why5_root = five_why.get("why5_root", "____")
         why_rows.append(["Why 5（根因）", "为什么流程/规范存在缺陷？", why5_root, "____"])
         root_cause_indices = [5]
 
-    row = write_table(
-        ws, row, why_headers, why_rows,
+    row = write_table(ws, row,
+        ["层级", "问题", "答案", "证据"],
+        why_rows,
         col_widths=[14, 38, 50, 22],
         root_cause_row_indices=root_cause_indices,
     )
 
     row += 1
-    # 鱼骨图 6M 排查表
     row = write_section_title(ws, row, "二、鱼骨图 6M 排查", span_cols=4)
     six_m = d4.get("6m_analysis", {})
 
-    # New format: array of {m, finding, judgment}
     if isinstance(six_m, list):
-        m_headers = ["6M 维度", "排查结果", "判定"]
         m_rows = []
         m_rc_indices = []
         for idx, item in enumerate(six_m):
@@ -549,49 +506,40 @@ def build_sheet_d4(wb, context, template):
             m_rows.append([m_name, finding, judgment])
             if "根本原因" in str(judgment):
                 m_rc_indices.append(idx)
-        row = write_table(
-            ws, row, m_headers, m_rows,
+        row = write_table(ws, row,
+            ["6M 维度", "排查结果", "判定"],
+            m_rows,
             col_widths=[18, 55, 18],
             root_cause_row_indices=m_rc_indices,
         )
     else:
-        # Old format fallback: dict with keys man/machine/material/etc
-        m_headers = ["6M 维度", "候选原因", "证据", "是否根因"]
-        m_rows = [
-            ["Man（人）", six_m.get("man", "____"), "____", "____（是/否）"],
-            ["Machine（机）", six_m.get("machine", "____"), "____", "____（是/否）"],
-            ["Material（料）", six_m.get("material", "____"), "____", "____（是/否）"],
-            ["Method（法）", six_m.get("method", "____"), "____", "____（是/否）"],
-            ["Measurement（测）", six_m.get("measurement", "____"), "____", "____（是/否）"],
-            ["Environment（环）", six_m.get("environment", "____"), "____", "____（是/否）"],
-        ]
-        row = write_table(
-            ws, row, m_headers, m_rows,
+        row = write_table(ws, row,
+            ["6M 维度", "候选原因", "证据", "是否根因"],
+            [
+                ["Man（人）", six_m.get("man", "____"), "____", "____（是/否）"],
+                ["Machine（机）", six_m.get("machine", "____"), "____", "____（是/否）"],
+                ["Material（料）", six_m.get("material", "____"), "____", "____（是/否）"],
+                ["Method（法）", six_m.get("method", "____"), "____", "____（是/否）"],
+                ["Measurement（测）", six_m.get("measurement", "____"), "____", "____（是/否）"],
+                ["Environment（环）", six_m.get("environment", "____"), "____", "____（是/否）"],
+            ],
             col_widths=[16, 50, 24, 14],
         )
 
     row += 1
-    # 根本原因总结
     row = write_section_title(ws, row, "三、根本原因总结", span_cols=2)
     rc_summary = d4.get("root_cause_summary", [])
     if rc_summary:
-        rc_kv = []
-        for rc in rc_summary:
-            rc_id = rc.get("id", "____")
-            rc_desc = rc.get("description", "____")
-            rc_type = rc.get("type", "____")
-            rc_kv.append((f"{rc_id}（{rc_type}）", rc_desc))
+        rc_kv = [(f"{rc.get('id', '____')}（{rc.get('type', '____')}）", rc.get("description", "____")) for rc in rc_summary]
         row = write_kv_block(ws, row, rc_kv, label_col_width=22, value_col_width=70)
     else:
-        rc_kv = [
+        row = write_kv_block(ws, row, [
             ("RC1（直接原因）", "____（参考 5Why 第 1-2 层结论）"),
             ("RC2（管理原因）", "____（参考 5Why 第 3-4 层结论）"),
             ("RC3（系统原因）", "____（参考 5Why 第 5 层结论）"),
-        ]
-        row = write_kv_block(ws, row, rc_kv, label_col_width=22, value_col_width=70)
+        ], label_col_width=22, value_col_width=70)
 
     row += 1
-    # 验证结论
     row = write_section_title(ws, row, "四、根本原因验证结论", span_cols=2)
     verify_text = d4.get("verification", "")
     if verify_text:
@@ -601,129 +549,85 @@ def build_sheet_d4(wb, context, template):
         cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
         cell.border = get_thin_border()
         ws.row_dimensions[row].height = max(30, min(120, 15 + len(verify_text) // 4))
-        row += 1
     else:
-        verify_kv = [
+        row = write_kv_block(ws, row, [
             ("验证方法", "____（现场观察 / 数据收集 / 重现试验）"),
             ("验证数据", "____"),
             ("验证结论", "____（已确认 / 待进一步验证）"),
             ("验证人 / 日期", "____"),
-        ]
-        row = write_kv_block(ws, row, verify_kv, label_col_width=22, value_col_width=70)
+        ], label_col_width=22, value_col_width=70)
 
-
-def build_sheet_d5_d6(wb, context, template):
-    """Sheet 4: D5-D6 永久纠正措施"""
-    ws = wb.create_sheet("D5-D6 永久纠正措施")
-    ws.sheet_properties.tabColor = "70AD47"
-
-    row = 1
+    # ==================== D5-D6 ====================
+    row += 2
     row = write_yellow_section_title(ws, row, "D5-D6  永久纠正措施（Permanent Corrective Actions）", span_cols=7)
-
     row += 1
-    # D5 CA 方案评估矩阵
     row = write_section_title(ws, row, "一、D5 CA 方案评估矩阵", span_cols=6)
     d5_d6 = template.get("d5_d6_template", {})
     permanent_actions = d5_d6.get("permanent_actions", [])
 
-    ca_headers = ["序号", "CA 方案", "针对根因", "可行性", "风险评估", "决策"]
     ca_rows = []
     for i, action in enumerate(permanent_actions, start=1):
         if isinstance(action, dict):
-            action_text = action.get("action", "____")
-            target = action.get("target", "____")
+            ca_rows.append([i, action.get("action", "____"), action.get("target", "____"), "____（高/中/低）", "____（是否引入新风险）", "____（采纳/否决）"])
         else:
-            action_text = str(action)
-            target = "____"
-        ca_rows.append([i, action_text, target, "____（高/中/低）", "____（是否引入新风险）", "____（采纳/否决）"])
-
-    # 若不足3项，补齐
+            ca_rows.append([i, str(action), "____", "____（高/中/低）", "____（是否引入新风险）", "____（采纳/否决）"])
     while len(ca_rows) < 3:
         ca_rows.append([len(ca_rows) + 1, "____（请补充 CA 方案）", "____", "____", "____", "____"])
 
-    row = write_table(
-        ws, row, ca_headers, ca_rows,
+    row = write_table(ws, row,
+        ["序号", "CA 方案", "针对根因", "可行性", "风险评估", "决策"],
+        ca_rows,
         col_widths=[6, 50, 14, 12, 30, 12],
     )
 
     row += 1
-    # D6 实施计划跟踪表
     row = write_section_title(ws, row, "二、D6 实施计划跟踪表", span_cols=7)
-    d6_headers = ["序号", "实施措施", "目标根因", "责任人", "完成时间", "状态", "验证结果"]
     d6_rows = []
     for i, action in enumerate(permanent_actions, start=1):
         if isinstance(action, dict):
-            action_text = action.get("action", "____")
-            target = action.get("target", "____")
-            responsible = action.get("responsible", "____")
-            due = action.get("due_date", "____")
+            d6_rows.append([i, action.get("action", "____"), action.get("target", "____"), action.get("responsible", "____"), action.get("due_date", "____"), "____（未开始/进行中/已完成）", "____"])
         else:
-            action_text = str(action)
-            target = "____"
-            responsible = "____"
-            due = "____"
-        d6_rows.append([i, action_text, target, responsible, due, "____（未开始/进行中/已完成）", "____"])
-
+            d6_rows.append([i, str(action), "____", "____", "____", "____（未开始/进行中/已完成）", "____"])
     while len(d6_rows) < 3:
-        d6_rows.append([
-            len(d6_rows) + 1, "____", "____", "____", "____", "____", "____"
-        ])
+        d6_rows.append([len(d6_rows) + 1, "____", "____", "____", "____", "____", "____"])
 
-    row = write_table(
-        ws, row, d6_headers, d6_rows,
+    row = write_table(ws, row,
+        ["序号", "实施措施", "目标根因", "责任人", "完成时间", "状态", "验证结果"],
+        d6_rows,
         col_widths=[6, 40, 12, 14, 14, 18, 22],
     )
 
-
-def build_sheet_d7(wb, context, template):
-    """Sheet 5: D7 预防再发生"""
-    ws = wb.create_sheet("D7 预防再发生")
-    ws.sheet_properties.tabColor = "FFC000"
-
-    row = 1
+    # ==================== D7 ====================
+    row += 2
     row = write_yellow_section_title(ws, row, "D7  预防再发生 — 横向展开（Prevent Recurrence — Yokoten）", span_cols=6)
-
     row += 1
     row = write_section_title(ws, row, "一、横向展开措施清单", span_cols=5)
     d7 = template.get("d7_template", {})
     yokoten = d7.get("yokoten", [])
-
-    headers = ["序号", "横向展开措施", "推广范围", "责任人", "完成时间", "状态"]
-    rows = []
-    for i, item in enumerate(yokoten, start=1):
-        rows.append([i, item, "____（同类产线/产品/客户）", "____", "____", "____"])
-
-    while len(rows) < 4:
-        rows.append([len(rows) + 1, "____（请补充 Yokoten 措施）", "____", "____", "____", "____"])
-
-    row = write_table(
-        ws, row, headers, rows,
+    y_rows = [[i + 1, item, "____（同类产线/产品/客户）", "____", "____", "____"] for i, item in enumerate(yokoten)]
+    while len(y_rows) < 4:
+        y_rows.append([len(y_rows) + 1, "____（请补充 Yokoten 措施）", "____", "____", "____", "____"])
+    row = write_table(ws, row,
+        ["序号", "横向展开措施", "推广范围", "责任人", "完成时间", "状态"],
+        y_rows,
         col_widths=[6, 50, 22, 14, 14, 14],
     )
 
     row += 1
     row = write_section_title(ws, row, "二、PFMEA 更新", span_cols=2)
-    pfmea_kv = [
+    row = write_kv_block(ws, row, [
         ("本次失效模式", "____"),
         ("原 RPN", "____"),
         ("更新后 RPN", "____"),
         ("PFMEA 更新人 / 日期", "____"),
-    ]
-    row = write_kv_block(ws, row, pfmea_kv, label_col_width=24, value_col_width=60)
+    ], label_col_width=24, value_col_width=60)
 
-
-def build_sheet_d8(wb, context, template, report_number):
-    """Sheet 6: D8 关闭与签名"""
-    ws = wb.create_sheet("D8 关闭与签名")
-    ws.sheet_properties.tabColor = "7030A0"
-
-    row = 1
+    # ==================== D8 ====================
+    row += 2
     row = write_yellow_section_title(ws, row, "D8  团队认可与关闭（Team Recognition & Closure）", span_cols=4)
-
     row += 1
-    # 关闭确认
     row = write_section_title(ws, row, "一、关闭确认", span_cols=2)
-    close_kv = [
+    row = write_kv_block(ws, row, [
         ("所有 CA 是否实施完成", "____（是/否）"),
         ("所有 CA 是否验证有效", "____（是/否）"),
         ("客户是否认可", "____（是/否，附客户确认邮件）"),
@@ -731,66 +635,35 @@ def build_sheet_d8(wb, context, template, report_number):
         ("横向展开是否完成", "____（是/否）"),
         ("关闭日期", "____"),
         ("关闭结论", "____（同意关闭 / 暂不关闭，原因：____）"),
-    ]
-    row = write_kv_block(ws, row, close_kv, label_col_width=34, value_col_width=60)
+    ], label_col_width=34, value_col_width=60)
 
     row += 1
-    # 经验教训
     row = write_section_title(ws, row, "二、经验教训", span_cols=2)
-    lessons_kv = [
+    row = write_kv_block(ws, row, [
         ("本次问题处理经验", "____"),
         ("可改进之处", "____"),
         ("对其他产品的启示", "____"),
         ("建议改进的管理流程", "____"),
-    ]
-    row = write_kv_block(ws, row, lessons_kv, label_col_width=24, value_col_width=60)
+    ], label_col_width=24, value_col_width=60)
 
     row += 1
-    # 签名栏
     row = write_section_title(ws, row, "三、签名栏", span_cols=4)
-    sign_headers = ["角色", "姓名", "签名", "日期"]
-    sign_rows = [
-        ["编制（质量工程师）", "____", "____", "____"],
-        ["审核（质量经理）", "____", "____", "____"],
-        ["批准（质量总监）", "____", "____", "____"],
-        ["客户确认（如需）", "____", "____", "____"],
-    ]
-    row = write_table(
-        ws, row, sign_headers, sign_rows,
+    row = write_table(ws, row,
+        ["角色", "姓名", "签名", "日期"],
+        [
+            ["编制（质量工程师）", "____", "____", "____"],
+            ["审核（质量经理）", "____", "____", "____"],
+            ["批准（质量总监）", "____", "____", "____"],
+            ["客户确认（如需）", "____", "____", "____"],
+        ],
         col_widths=[24, 20, 25, 18],
     )
 
     row += 1
-    # 报告编号标注
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
     cell = ws.cell(row=row, column=1, value=f"8D 报告编号：{report_number}")
     cell.font = Font(name=FONT_NAME, size=10, italic=True, color="666666")
     cell.alignment = Alignment(horizontal="right", vertical="center")
-
-
-def generate_excel(context, template, output_path, report_number):
-    """生成 Excel 文件。"""
-    wb = openpyxl.Workbook()
-
-    build_sheet_d0_d2(wb, context, template, report_number)
-    build_sheet_d3(wb, context, template)
-    build_sheet_d4(wb, context, template)
-    build_sheet_d5_d6(wb, context, template)
-    build_sheet_d7(wb, context, template)
-    build_sheet_d8(wb, context, template, report_number)
-
-    # Set sheet tab colors for visual organization
-    sheet_colors = {
-        "D0-D2 基本信息": "003366",
-        "D3 临时遏制措施": "C00000",
-        "D4 根本原因分析": "ED7D31",
-        "D5-D6 永久纠正措施": "70AD47",
-        "D7 预防再发生": "FFC000",
-        "D8 关闭与签名": "7030A0",
-    }
-    for sheet_name, color in sheet_colors.items():
-        if sheet_name in wb.sheetnames:
-            wb[sheet_name].sheet_properties.tabColor = color
 
     wb.save(output_path)
     print(f"[OK] Excel 已生成：{output_path}")
@@ -1386,6 +1259,12 @@ def parse_args():
 
 
 def main():
+    # Windows 终端 UTF-8 编码修复（避免 print 中文乱码导致 Agent 解析失败）
+    import io
+    if sys.platform == "win32":
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
+
     args = parse_args()
 
     # 构造 context
