@@ -110,6 +110,43 @@ FONT_NAME_EN = "Microsoft YaHei"
 # 工具函数
 # ============================================================
 
+def normalize_defect_rate(value):
+    """统一不良率表达：接受 '500PPM' / '500ppm' / '0.05%' / '0.05' 等格式，
+    返回 '500 PPM (0.05%)' 这种双格式字符串，便于客户/内部双向理解。
+
+    遵循 SKILL.md 第十章「行业常识基准」：>0.5% 视为严重事故，函数会标注警告但不会拒绝。
+    """
+    if not value or value == "____" or not isinstance(value, str):
+        return value if value else "____"
+    s = value.strip()
+    # 已经是双格式（含 PPM 和 %）
+    if "PPM" in s.upper() and "%" in s:
+        return s
+    # 提取数字
+    import re
+    m = re.search(r"(\d+(?:\.\d+)?)", s)
+    if not m:
+        return s  # 无法解析，原样返回
+    num = float(m.group(1))
+    upper = s.upper()
+    if "PPM" in upper:
+        # PPM → %
+        percent = num / 10000.0
+        return f"{int(num) if num.is_integer() else num} PPM ({percent:.4f}%)"
+    elif "%" in s:
+        # % → PPM
+        ppm = num * 10000
+        return f"{int(ppm) if ppm.is_integer() else ppm} PPM ({num}%)"
+    else:
+        # 纯数字，按行业常识判断：≤1 视为百分比，>1 视为 PPM
+        if num <= 1:
+            ppm = num * 10000
+            return f"{int(ppm) if ppm.is_integer() else ppm} PPM ({num}%)"
+        else:
+            percent = num / 10000.0
+            return f"{int(num) if num.is_integer() else num} PPM ({percent:.4f}%)"
+
+
 def replace_placeholders(text, context):
     """替换文本中的占位符。"""
     if not isinstance(text, str):
@@ -1278,9 +1315,22 @@ def main():
         "product": args.product,
         "defect": args.defect,
         "customer": args.customer,
-        "defect_rate": args.defect_rate,
+        "defect_rate": normalize_defect_rate(args.defect_rate),
         "batch_size": args.batch_size,
     }
+    # 行业常识基准警告（>0.5% 视为严重事故）
+    if args.defect_rate and args.defect_rate != "____":
+        import re
+        m = re.search(r"(\d+(?:\.\d+)?)", args.defect_rate)
+        if m:
+            num = float(m.group(1))
+            upper = args.defect_rate.upper()
+            is_ppm = "PPM" in upper
+            is_percent = "%" in args.defect_rate
+            if is_ppm and num > 5000:
+                print(f"[WARN] 不良率 {args.defect_rate} > 5000 PPM (0.5%)，属于停发/召回级事故，建议在 D0 阶段标注「严重度=高，建议升级处理」")
+            elif is_percent and num > 0.5:
+                print(f"[WARN] 不良率 {args.defect_rate} > 0.5%（5000 PPM），属于停发/召回级事故，建议在 D0 阶段标注「严重度=高，建议升级处理」")
 
     # 生成 8D 编号
     report_number = generate_8d_number()
